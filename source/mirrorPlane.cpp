@@ -19,11 +19,13 @@ static float plane[][3] = { { 0.00f, 1.00f, 1.00f },
 MTypeId MirrorPlane::id( 0x71000 );
 MString MirrorPlane::drawDbClassification( "drawdb/geometry/mirrorPlane_GeometryOverride" );
 MString MirrorPlane::drawRegistrantId( "MirrorPlaneNode_GeometryOverridePlugin" );
+MObject MirrorPlane::hyaline;
 MObject MirrorPlane::size;
 MObject MirrorPlane::top;
 MObject MirrorPlane::bottom;
 MObject MirrorPlane::front;
 MObject MirrorPlane::back;
+MObject MirrorPlane::asType;
 
 
 void* MirrorPlane::creator()
@@ -38,6 +40,24 @@ MStatus MirrorPlane::compute( const MPlug& , MDataBlock& )
 }
 
 
+bool MirrorPlane::excludeAsLocator() const
+{
+    MObject thisNode = thisMObject();
+    MPlug asTypePlug( thisNode, MirrorPlane::asType );
+    bool hideIt;
+    asTypePlug.getValue( hideIt );
+    return !hideIt;
+}
+
+
+float MirrorPlane::unitValue( const MPlug& plug )
+{
+    MDistance dist;
+    plug.getValue( dist );
+    return (float)dist.asCentimeters();
+}
+
+
 void MirrorPlane::draw( M3dView& view, 
                         const MDagPath& path,
                         M3dView::DisplayStyle style,
@@ -45,64 +65,68 @@ void MirrorPlane::draw( M3dView& view,
 {
 
     MObject thisNode = thisMObject();
+
+    MPlug localPositionXPlug( thisNode, MirrorPlane::localPositionX );
+    MPlug localPositionYPlug( thisNode, MirrorPlane::localPositionY );
+    MPlug localPositionZPlug( thisNode, MirrorPlane::localPositionZ );
+    float lpx = localPositionXPlug.asFloat();
+    float lpy = localPositionYPlug.asFloat();
+    float lpz = localPositionZPlug.asFloat();
+
+    MPlug localScaleYPlug( thisNode, MirrorPlane::localScaleY );
+    MPlug localScaleZPlug( thisNode, MirrorPlane::localScaleZ );
+    float lsy = localScaleYPlug.asFloat();
+    float lsz = localScaleZPlug.asFloat();
+
+    MPlug hyalinePlug( thisNode, MirrorPlane::hyaline );
+    float newHyaline = hyalinePlug.asFloat();
+
     MPlug sizePlug( thisNode, MirrorPlane::size );
-    float newSize = 1.0f;
-    MDistance sizeVal;
-    sizePlug.getValue( sizeVal );
-    newSize = (float)sizeVal.asCentimeters();
+    float newSize = unitValue( sizePlug );
 
     MPlug topPlug( thisNode, MirrorPlane::top );
-    float newTop = 1.0f;
-    MDistance topVal;
-    topPlug.getValue( topVal );
-    newTop = (float)topVal.asCentimeters();
+    float newTop = unitValue( topPlug );
 
     MPlug bottomPlug( thisNode, MirrorPlane::bottom );
-    float newBottom = 1.0f;
-    MDistance bottomVal;
-    bottomPlug.getValue( bottomVal );
-    newBottom = (float)bottomVal.asCentimeters();
+    float newBottom = unitValue( bottomPlug );
 
     MPlug frontPlug( thisNode, MirrorPlane::front );
-    float newFront = 1.0f;
-    MDistance frontVal;
-    frontPlug.getValue( frontVal );
-    newFront = (float)frontVal.asCentimeters();
+    float newFront = unitValue( frontPlug );
 
     MPlug backPlug( thisNode, MirrorPlane::back );
-    float newBack = 1.0f;
-    MDistance backVal;
-    backPlug.getValue( backVal );
-    newBack = (float)backVal.asCentimeters();
+    float newBack = unitValue( backPlug );
 
     view.beginGL();
     
     glPushAttrib( GL_CURRENT_BIT );
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glEnable( GL_BLEND );
+    glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
+
+    if ( status == M3dView::kDormant )
+    {
+        glColor4f( 0.5f, 0.2f, 0.1f, 1.0f * newHyaline );
+    }
 
     if ( status == M3dView::kActive )
     {
-        glColor4f( 0.75, 0.2, 0.1, 0.75 );
+        glColor4f( 0.5f, 1.0f, 0.5f, 0.8f * newHyaline );
     }
-    else if ( status == M3dView::kLead )
+
+    if ( status == M3dView::kLead )
     {
-        glColor4f( 0.5, 0.2, 0.1, 0.5 );
+        glColor4f( 0.75f, 1.0f, 0.75f, 1.0f * newHyaline );
     }
-    else if ( status == M3dView::kNoStatus )
+
+    if ( status == M3dView::kNoStatus )
     {
-        glColor4f( 0.0, 0.0, 0.0, 1.0 );
-    }
-    else
-    {
-        glColor4f( 0.5, 0.2, 0.1, 0.5 );
+        glColor4f( 0.0f, 0.0f, 0.0f, 1.0f * newHyaline );
     }
 
     glBegin( GL_POLYGON );
-    glVertex3f( plane[0][0], plane[0][1] * newSize * newTop,    plane[0][2] * newSize * newFront );
-    glVertex3f( plane[1][0], plane[1][1] * newSize * newBottom, plane[1][2] * newSize * newFront );
-    glVertex3f( plane[2][0], plane[2][1] * newSize * newBottom, plane[2][2] * newSize * newBack );
-    glVertex3f( plane[3][0], plane[3][1] * newSize * newTop,    plane[3][2] * newSize * newBack );
+    glVertex3f( plane[0][0] + lpx, plane[0][1] * newSize * newTop    * lsy + lpy, plane[0][2] * newSize * newFront * lsz + lpz );
+    glVertex3f( plane[1][0] + lpx, plane[1][1] * newSize * newBottom * lsy + lpy, plane[1][2] * newSize * newFront * lsz + lpz );
+    glVertex3f( plane[2][0] + lpx, plane[2][1] * newSize * newBottom * lsy + lpy, plane[2][2] * newSize * newBack  * lsz + lpz );
+    glVertex3f( plane[3][0] + lpx, plane[3][1] * newSize * newTop    * lsy + lpy, plane[3][2] * newSize * newBack  * lsz + lpz );
     glEnd();
 
     glDisable( GL_BLEND );
@@ -129,7 +153,19 @@ MBoundingBox MirrorPlane::boundingBox() const
 
 MStatus MirrorPlane::initialize()
 {
-    MFnUnitAttribute unitFn;
+    MStatus status;
+
+    MFnNumericAttribute numericFn;
+	MFnUnitAttribute unitFn;
+    MFnEnumAttribute enumFn;
+
+    MirrorPlane::hyaline = numericFn.create( "hyaline", "hy", MFnNumericData::kFloat, 0.5 );
+    numericFn.setHidden( false );
+    numericFn.setKeyable( false );
+    numericFn.setChannelBox( true );
+    numericFn.setMin( 0.0 );
+    numericFn.setMax( 1.0 );
+    addAttribute( MirrorPlane::hyaline );
 
     MirrorPlane::size = unitFn.create( "size", "sz", MFnUnitAttribute::kDistance, 1.0 );
     unitFn.setHidden( false );
@@ -161,6 +197,15 @@ MStatus MirrorPlane::initialize()
     unitFn.setChannelBox( true );
     addAttribute( MirrorPlane::back );
 
+    MirrorPlane::asType = enumFn.create( "asType", "at", 0 );
+    enumFn.addField( "locator", 0 );
+    enumFn.addField( "custom", 1 );
+    enumFn.setHidden( false );
+    enumFn.setKeyable( false );
+    enumFn.setChannelBox( true );
+    enumFn.setStorable( true );
+    addAttribute( MirrorPlane::asType );
+
     return MS::kSuccess;
 }
 
@@ -176,6 +221,7 @@ MirrorPlaneOverride::MirrorPlaneOverride( const MObject& obj )
 : MHWRender::MPxGeometryOverride( obj )
 , mSolidUIShader( NULL )
 , mLocatorNode( obj )
+, newHyaline( 0.5f )
 , newSize( 1.0f )
 , newTop( 1.0f )
 , newBottom( 1.0f )
@@ -205,7 +251,7 @@ MirrorPlaneOverride::~MirrorPlaneOverride()
             const MHWRender::MShaderManager* shaderMgr = renderer->getShaderManager();
             if (shaderMgr)
             {
-                shaderMgr->releaseShader(mSolidUIShader);
+                shaderMgr->releaseShader( mSolidUIShader );
             }
         }
         mSolidUIShader = NULL;
@@ -226,6 +272,10 @@ const MString shadedPlaneItemName_       = "mirrorPlaneTriangles";
 
 void MirrorPlaneOverride::updateDG()
 {
+
+    MPlug hyalinePlug( mLocatorNode, MirrorPlane::hyaline );
+    newHyaline = (float)hyalinePlug.asFloat();
+
     MPlug sizePlug( mLocatorNode, MirrorPlane::size );
     MDistance sizeVal;
     sizePlug.getValue( sizeVal );
@@ -306,7 +356,7 @@ void MirrorPlaneOverride::updateRenderItems( const MDagPath& path, MHWRender::MR
         if ( mSolidUIShader )
         {
             MColor color = MHWRender::MGeometryUtilities::wireframeColor( path );
-            float wireframeColor[4] = { color.r, color.g, color.b, 0.5f };
+            float wireframeColor[4] = { color.r, color.g, color.b, 1.0f * newHyaline };
             mSolidUIShader->setParameter( colorParameterName_, wireframeColor );
             shadedPlaneItem->setShader( mSolidUIShader );
         }
@@ -352,21 +402,33 @@ void MirrorPlaneOverride::populateGeometry( const MHWRender::MGeometryRequiremen
         }
     }
 
-    vertices[0]  = plane[0][0] ;
-    vertices[1]  = plane[0][1] * newSize * newTop;
-    vertices[2]  = plane[0][2] * newSize * newFront;
+    MPlug localPositionXPlug( mLocatorNode, MirrorPlane::localPositionX );
+    MPlug localPositionYPlug( mLocatorNode, MirrorPlane::localPositionY );
+    MPlug localPositionZPlug( mLocatorNode, MirrorPlane::localPositionZ );
+    float lpx = localPositionXPlug.asFloat();
+    float lpy = localPositionYPlug.asFloat();
+    float lpz = localPositionZPlug.asFloat();
 
-    vertices[3]  = plane[1][0];
-    vertices[4]  = plane[1][1] * newSize * newBottom;
-    vertices[5]  = plane[1][2] * newSize * newFront;
+    MPlug localScaleYPlug( mLocatorNode, MirrorPlane::localScaleY );
+    MPlug localScaleZPlug( mLocatorNode, MirrorPlane::localScaleZ );
+    float lsy = localScaleYPlug.asFloat();
+    float lsz = localScaleZPlug.asFloat();
 
-    vertices[6]  = plane[2][0];
-    vertices[7]  = plane[2][1] * newSize * newBottom;
-    vertices[8]  = plane[2][2] * newSize * newBack;
+    vertices[0]  = plane[0][0] + lpx;
+    vertices[1]  = plane[0][1] * newSize * newTop    * lsy + lpy;
+    vertices[2]  = plane[0][2] * newSize * newFront  * lsz + lpz;
 
-    vertices[9]  = plane[3][0];
-    vertices[10] = plane[3][1] * newSize * newTop;
-    vertices[11] = plane[3][2] * newSize * newBack;
+    vertices[3]  = plane[1][0] + lpx;
+    vertices[4]  = plane[1][1] * newSize * newBottom * lsy + lpy;
+    vertices[5]  = plane[1][2] * newSize * newFront  * lsz + lpz;
+
+    vertices[6]  = plane[2][0] + lpx;
+    vertices[7]  = plane[2][1] * newSize * newBottom * lsy + lpy;
+    vertices[8]  = plane[2][2] * newSize * newBack   * lsz + lpz;
+
+    vertices[9]  = plane[3][0] + lpx;
+    vertices[10] = plane[3][1] * newSize * newTop    * lsy + lpy;
+    vertices[11] = plane[3][2] * newSize * newBack   * lsz + lpz;
 
     if( verticesBuffer && vertices )
     {
@@ -399,7 +461,7 @@ void MirrorPlaneOverride::populateGeometry( const MHWRender::MGeometryRequiremen
                 else
                 {
                     indices[i] = startIndex + i/2;
-                    if (i+1 < numIndex)
+                    if ( i+1 < numIndex )
                         indices[i+1] = endIndex - i/2;
                     i += 2;
                 }

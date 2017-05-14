@@ -14,6 +14,9 @@ Github  :   https://github.com/astips
 #include <maya/MFnPlugin.h>
 #include <maya/MPxLocatorNode.h>
 #include <maya/MColor.h>
+#include <maya/MFnNumericAttribute.h>
+#include <maya/MFnNumericData.h>
+#include <maya/MFnEnumAttribute.h>
 // Viewport 2.0 includes
 #include <maya/MDataBlock.h>
 #include <maya/MDataHandle.h>
@@ -41,6 +44,7 @@ public:
 
     virtual bool            isBounded() const { return true; }
     virtual bool            isTransparent() const { return true; }
+    virtual bool            excludeAsLocator() const;
     virtual MBoundingBox    boundingBox() const;
 
     virtual void            draw( M3dView & view, 
@@ -55,14 +59,19 @@ public:
 public:
     static  MTypeId         id;
 
+    static  MObject         hyaline; 
     static  MObject         size; 
     static  MObject         top; 
     static  MObject         bottom; 
     static  MObject         front; 
     static  MObject         back; 
+    static  MObject         asType;
 
     static  MString         drawDbClassification;
     static  MString         drawRegistrantId;
+
+private:
+    float                   unitValue( const MPlug& plug );
 };
 
 
@@ -81,8 +90,8 @@ public:
     virtual bool            hasUIDrawables() const { return false; }
     virtual void            updateDG();
 
-    virtual bool            isStreamDirty(const MHWRender::MVertexBufferDescriptor &desc) { return needRefresh; }
-    virtual bool            isIndexingDirty(const MHWRender::MRenderItem &item) { return false; }
+    virtual bool            isStreamDirty( const MHWRender::MVertexBufferDescriptor &desc ) { return needRefresh; }
+    virtual bool            isIndexingDirty( const MHWRender::MRenderItem &item ) { return false; }
 
     virtual void            updateRenderItems( const MDagPath &path, MHWRender::MRenderItemList& list );
     
@@ -107,6 +116,7 @@ public:
 private:
                             MirrorPlaneOverride( const MObject& obj );
 
+    float                   newHyaline;
     float                   newSize;
     float                   newTop;
     float                   newBottom;
