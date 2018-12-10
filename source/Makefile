@@ -63,8 +63,9 @@ $($(PLUGIN_NAME)_OBJECTS): INCLUDES := $(INCLUDES) $($(PLUGIN_NAME)_EXTRA_INCLUD
 depend_$(PLUGIN_NAME):     INCLUDES := $(INCLUDES) $($(PLUGIN_NAME)_EXTRA_INCLUDES)
 
 $($(PLUGIN_NAME)_PLUGIN):  LFLAGS   := $(LFLAGS) $($(PLUGIN_NAME)_EXTRA_LFLAGS) 
-$($(PLUGIN_NAME)_PLUGIN):  LIBS     := $(LIBS)   -lOpenMaya -lOpenMayaAnim -lOpenMayaUI -lOpenMayaRender -lFoundation -lOpenGL -lclew $($(PLUGIN_NAME)_EXTRA_LIBS) 
+$($(PLUGIN_NAME)_PLUGIN):  LIBS     := $(LIBS)   -lOpenMaya -lOpenMayaAnim -lOpenMayaUI -lOpenMayaRender -lFoundation -lclew $($(PLUGIN_NAME)_EXTRA_LIBS)
 
+# -lOpenGL
 #
 # Rules definitions
 #
